@@ -25,6 +25,8 @@ public class MyObject {
 	public String remarks;
 	public String x;
 	public String y;
+	public String objheight;
+	public String objwidth;
 	
 	MyObject(String name){
 		this.name = name;

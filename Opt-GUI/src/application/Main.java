@@ -39,10 +39,13 @@ import javafx.scene.control.Accordion;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBase;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.ListView;
+import javafx.scene.control.Menu;
+import javafx.scene.control.MenuBar;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.ScrollPane.ScrollBarPolicy;
 import javafx.scene.control.SplitPane;
@@ -54,6 +57,7 @@ import javafx.scene.image.ImageView;
 import javafx.scene.input.ClipboardContent;
 import javafx.scene.input.DragEvent;
 import javafx.scene.input.Dragboard;
+import javafx.scene.input.InputEvent;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.input.TransferMode;
 import javafx.scene.layout.AnchorPane;
@@ -64,6 +68,7 @@ import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
+import javafx.scene.shape.Line;
 import javafx.scene.shape.Rectangle;
 import javafx.util.Callback;
 import javafx.util.Duration;
@@ -79,22 +84,44 @@ public class Main extends Application {
 	Label l;
 	Group grp;
 	File file1;
+	EventHandler handler;
+	public static Node mynode=null;
+	ImageView imgView;
+	Line currentLine;
 	XSSFSheet sheet;
 	XSSFWorkbook workbook;
-	ListView<MyObject> list;
+	public static ListView<MyObject> list;
 	int rect_no = 0, rows = 0;
 	double orgSceneX, orgSceneY;
 	double orgTranslateX, orgTranslateY;
 	ArrayList<Rectangle> module = new ArrayList<Rectangle>();
-	HashMap<Integer, MyObject> module_label = new HashMap<Integer, MyObject>();
+	public static HashMap<Integer, MyObject> module_label = new HashMap<Integer, MyObject>();
 
 	@Override
 	public void start(Stage primaryStage) {
 		try {
 			
+			MenuBar menuBar = new MenuBar();
+			 
+	        // --- Menu File
+	        Menu newproject = new Menu();
+	        Label newFile = new Label("New Project");
+	 
+	        // --- Menu Edit
+	        Menu openproject = new Menu();
+	        Label edit = new Label("Open Project");
+	
+	        newproject.setGraphic(newFile);
+	        openproject.setGraphic(edit);
+	        menuBar.getMenus().addAll(newproject, openproject);
+	 
+	 
+			
 			//buttons
 			Button btn = new Button();
-			btn.setText("  PDF chooser                          ");
+			btn.setText("  Single Connection                          ");
+			Button btn6 = new Button();
+			btn6.setText("  Double Connection                          ");
 			Button btn1 = new Button();
 			btn1.setText("  Zoom In                                ");
 			Button btn2 = new Button();
@@ -102,17 +129,17 @@ public class Main extends Application {
 			Button btn3 = new Button();
 			btn3.setText("  Rotate Image                        ");
 			Button btn4 = new Button();
-			btn4.setText("  Excel chooser                        ");
+			btn4.setText("  Stop Connection                             ");
 			Button btn5 = new Button();
 			btn5.setText("  Save                                     ");
 			
 			//module shape
 			Rectangle rectangle = new Rectangle(20, 20, 20, 20);
-			rectangle.setFill(Color.GRAY);
+			rectangle.setFill(Color.CORNFLOWERBLUE);
 
 			//list of module numbers
 			list = new ListView<>();
-			list.setPrefWidth(70); list.setPrefHeight(120);
+			list.setPrefWidth(70); list.setPrefHeight(200);
 			 
 			//grid inside titledpane
 			GridPane grid = new GridPane();
@@ -138,6 +165,7 @@ public class Main extends Application {
 			//vertical box inside leftpane
 			VBox vbox = new VBox();
 			vbox.getChildren().add(btn);
+			vbox.getChildren().add(btn6);
 			vbox.getChildren().add(btn4);
 			vbox.getChildren().add(btn1);
 			vbox.getChildren().add(btn2);
@@ -162,30 +190,116 @@ public class Main extends Application {
 			splitPane.getItems().addAll(leftPane, scrollPane);
 			splitPane.setDividerPositions(0.25);
 			leftPane.maxWidthProperty().bind(splitPane.widthProperty().multiply(0.17));
+			
+			BorderPane root = new BorderPane(splitPane);
+			root.setTop(menuBar);
 
-			Scene scene = new Scene(new BorderPane(splitPane), 800, 600);
+			Scene scene = new Scene(root, 800, 600);
 			scene.getStylesheets().add(getClass().getResource("application.css").toExternalForm());
+		
 			primaryStage.setScene(scene);
 			primaryStage.show();
 
 			//pdf chooser
-			btn.setOnAction(new EventHandler<ActionEvent>() {
+			newFile.setOnMouseClicked(new EventHandler<MouseEvent>() {
 				
 				@Override
-				public void handle(ActionEvent event) {
-					
+				public void handle(MouseEvent event) {
+					Alert alert = new Alert(AlertType.INFORMATION);
+					alert.setTitle("STEP-1");
+					alert.setContentText("Choose PDF File");
+					alert.showAndWait();
 					FileChooser fileChooser = new FileChooser();
 
 					// Set Initial Directory to Desktop and set image in rightpane
 					fileChooser.setInitialDirectory(new File(System.getProperty("user.home") + "\\Desktop"));
 					File file = fileChooser.showOpenDialog(primaryStage);
 					Image image = new Image(file.toURI().toString());
-					ImageView imgView = new ImageView(image);
+				    imgView = new ImageView(image);
 					imgView.setImage(image);
 					imgView.setSmooth(true);
 					grp.getChildren().add(imgView);
+					
+					alert.setTitle("STEP2");
+					alert.setContentText("Choose Excel File");
+					alert.showAndWait();
+					FileChooser fileChooser1 = new FileChooser();
+					// Set Initial Directory to Desktop and read the excel
+					fileChooser.setInitialDirectory(new File(System.getProperty("user.home") + "\\Desktop"));
+					file1 = fileChooser.showOpenDialog(primaryStage);
+					if(read_excel(file1)==0){
+					
+						list.setCellFactory(new Callback<ListView<MyObject>, ListCell<MyObject>>(){
+	
+							@Override
+							public ListCell<MyObject> call(ListView<MyObject> p) {
+	
+								ListCell<MyObject> cell = new ListCell<MyObject>(){
+	
+									@Override
+									protected void updateItem(MyObject t, boolean bln) {
+	
+										super.updateItem(t, bln);
+										if (t != null ) {
+	
+											setText( Integer.toString((int) Double.parseDouble(t.name)));		                           
+										} 
+										else {
+											
+											setText("");
+										}
+									}
+								};
+	
+								return cell;	
+							}
+						});
+					}else{
+						update_list();
+					}
+					
+					
 				}
 			});
+			btn.setOnAction(new EventHandler<ActionEvent>() {
+				
+				@Override
+				public void handle(ActionEvent event) {
+					mynode = grp;
+					mynode.setOnMousePressed(e -> {
+						//System.out.println("mouse pressed");
+			            currentLine = new Line(e.getX(), e.getY(), e.getX(), e.getY());
+			            grp.getChildren().add(currentLine);
+			        });
+
+			        mynode.setOnMouseDragged(e -> {
+			            currentLine.setEndX(e.getX());
+			            currentLine.setEndY(e.getY());
+			            currentLine.setStrokeWidth(2);
+			            currentLine.setStroke(Color.RED);
+			        });
+				}
+			});
+			btn6.setOnAction(new EventHandler<ActionEvent>() {
+
+				@Override
+				public void handle(ActionEvent event) {
+					mynode = grp;
+					mynode.setOnMousePressed(e -> {
+						//System.out.println("mouse pressed");
+						currentLine = new Line(e.getX(), e.getY(), e.getX(), e.getY());
+						grp.getChildren().add(currentLine);
+					});
+
+					mynode.setOnMouseDragged(e -> {
+						currentLine.setEndX(e.getX());
+						currentLine.setEndY(e.getY());
+						currentLine.setStrokeWidth(2);
+						currentLine.setStroke(Color.CHARTREUSE);
+					});
+				}
+			});
+			
 			
 			//zoom in
 			btn1.setOnAction(new EventHandler<ActionEvent>() {
@@ -225,40 +339,10 @@ public class Main extends Application {
 				@Override
 				public void handle(ActionEvent event) {
 					
-					FileChooser fileChooser = new FileChooser();
-					// Set Initial Directory to Desktop and read the excel
-					fileChooser.setInitialDirectory(new File(System.getProperty("user.home") + "\\Desktop"));
-					file1 = fileChooser.showOpenDialog(primaryStage);
-					if(read_excel(file1)==0){
-					
-						list.setCellFactory(new Callback<ListView<MyObject>, ListCell<MyObject>>(){
-	
-							@Override
-							public ListCell<MyObject> call(ListView<MyObject> p) {
-	
-								ListCell<MyObject> cell = new ListCell<MyObject>(){
-	
-									@Override
-									protected void updateItem(MyObject t, boolean bln) {
-	
-										super.updateItem(t, bln);
-										if (t != null ) {
-	
-											setText( Integer.toString((int) Double.parseDouble(t.name)));		                           
-										} 
-										else {
-											
-											setText("");
-										}
-									}
-								};
-	
-								return cell;	
-							}
-						});
-					}else{
-						update_list();
-					}
+					mynode.setOnMousePressed(null);
+					mynode.setOnMouseDragged(null);
+					mynode=null;
+				
 				}
 			});
 			
@@ -289,7 +373,7 @@ public class Main extends Application {
 					
 					Dragboard dragboard = rectangle.startDragAndDrop(TransferMode.COPY);
 					ClipboardContent content = new ClipboardContent();
-					content.putString("hello");
+					content.putString("module");
 					dragboard.setContent(content);
 					event.consume();
 				}
@@ -315,15 +399,19 @@ public class Main extends Application {
 				public void handle(DragEvent event) {
 
 					Dragboard dragboard = event.getDragboard();
-					if (dragboard.hasString()) {
+						
+					if (dragboard.getString().equals("module")) {
 
 						Rectangle rect = new Rectangle(20, 20, 20, 20);
-						rect.setFill(Color.GREEN);
-						rect.relocate(orgSceneX, orgSceneY);
-						rect.setId("" + rect_no);
-						module.add(rect);
+						
 						try {
 							grp.getChildren().addAll(rect, l);
+							rect.setFill(Color.CORNFLOWERBLUE);
+							ReadProps.run(rect);
+							DragResizer.makeResizable(rect);
+							rect.relocate(orgSceneX, orgSceneY);
+							rect.setId("" + rect_no);
+							module.add(rect);
 							l.relocate(orgSceneX, orgSceneY - 15);
 							//System.out.println(list.getSelectionModel().getSelectedItem());
 							module_label.put(rect_no, list.getSelectionModel().getSelectedItem());
@@ -354,35 +442,6 @@ public class Main extends Application {
 					event.consume();
 				}
 			});
-			
-			//read properties when mouse is clicked on module
-			scrollPane.setOnMouseClicked(new EventHandler<MouseEvent>() {
-				
-				int i = 0;
-				@Override
-				public void handle(MouseEvent event) {
-
-					for (i = 0; i < module.size(); i++) {
-
-						Rectangle m = module.get(i);
-						module_clicked(m);
-					}
-				}
-				private void module_clicked(Rectangle m) {
-
-					m.setOnMouseClicked(new EventHandler<MouseEvent>() {
-
-						@Override
-						public void handle(MouseEvent event) {
-							//System.out.println(module_label);
-							//System.out.println(m.getId()+" "+module_label.get());
-							pop_window(m, module_label.get(Integer.parseInt(m.getId())));
-							
-						}
-					});
-				}
-			});
-
 		}
 	
 		catch (Exception e) {
@@ -504,7 +563,10 @@ public void write_toExcel(HashMap<Integer, MyObject> module_label) {
 			                			writeallcells(cell,row,module_label.get(i).x,17);
 			                			cell = (XSSFCell) row.getCell(18);
 			                			writeallcells(cell,row,module_label.get(i).y,18);
-			              
+			                			cell = (XSSFCell) row.getCell(19);
+			                			writeallcells(cell,row,Double.toString(module.get(i).getHeight()),19);
+			                			cell = (XSSFCell) row.getCell(20);
+			                			writeallcells(cell,row,Double.toString(module.get(i).getWidth()),20);
 			                			count++;
 				                		break;
 			                		}
@@ -520,7 +582,7 @@ public void write_toExcel(HashMap<Integer, MyObject> module_label) {
 
            file.close();
 
-           FileOutputStream outFile =new FileOutputStream(file1);
+           FileOutputStream outFile =new FileOutputStream(new File("C:\\Users\\navya\\Desktop\\New Project\\new.xlsx"));
            workbook.write(outFile);
            outFile.close();
 
@@ -589,15 +651,16 @@ public void write_toExcel(HashMap<Integer, MyObject> module_label) {
 							flag=1;
 							
 							 read_prop_excel(row,temp,null);
-							 Rectangle rect = new Rectangle(20,20,20,20);
+							 Rectangle rect = new Rectangle(20,20,Double.parseDouble(temp.objwidth),Double.parseDouble(temp.objheight));
 							 l = new Label(Integer.toString((int) Double.parseDouble(temp.name)));
 							 rect.setId(Integer.toString(rect_no));
-							 rect.setFill(Color.GREEN);
+							 rect.setFill(Color.CORNFLOWERBLUE);
 							 rect.relocate(Double.parseDouble(temp.x)+20, Double.parseDouble(temp.y)+20);
 							 l.relocate(Double.parseDouble(temp.x)+20, Double.parseDouble(temp.y)+5);
 							 grp.getChildren().addAll(rect, l);
 							 module.add(rect);
 							 module_label.put(rect_no, temp);
+							 ReadProps.run(rect);
 							 rect_no++;
 							 temp.color=1;
 							 
@@ -625,7 +688,7 @@ public void write_toExcel(HashMap<Integer, MyObject> module_label) {
 
 		try {
 
-			for (int r = 0; r < rows; r++) {
+			for (int r = 0; r <= rows; r++) {
 				Row row = sheet.getRow(r);
 				if (row != null) {
 					// for(int c = 0; c < cols; c++) {
@@ -674,274 +737,11 @@ public void write_toExcel(HashMap<Integer, MyObject> module_label) {
 			
 			temp.x = row.getCell(17).toString();
 			temp.y = row.getCell(18).toString();
+			temp.objheight = row.getCell(19).toString();
+			temp.objwidth = row.getCell(20).toString();
 		}
 		//System.out.println(temp.name);
 	}
 	//pop up new window to show the props of the module
-	public void pop_window( Rectangle m, MyObject temp) {
-		
-		//System.out.println(temp);
-		TextField id = new TextField(temp.id);
-		TextField area = new TextField(temp.area);
-		TextField mod_no = new TextField(temp.name);
-		TextField cat = new TextField(temp.cat);
-		TextField des = new TextField(temp.des);
-		TextField width = new TextField(temp.width);
-		TextField length = new TextField(temp.length);
-		TextField height = new TextField(temp.height);
-		TextField ton = new TextField(temp.ton);
-		TextField weight_mt = new TextField(temp.weight_mt);
-		TextField land = new TextField(temp.land);
-		TextField axe = new TextField(temp.axe);
-		TextField lift = new TextField(temp.lift);
-		TextField crane = new TextField(temp.crane);
-		TextField ROS = new TextField(temp.ROS);
-		TextField set_date = new TextField(temp.set_date);
-		TextField remarks = new TextField(temp.remarks);
-		TextField x = new TextField(temp.x);
-		TextField y = new TextField(temp.y);
- 
-		ScrollPane sp = new ScrollPane();
-		sp.setFitToHeight(true);
-		sp.setFitToWidth(true);
-		sp.setVbarPolicy(ScrollBarPolicy.ALWAYS);
-		
-		// insert values from excel to gridpane i.e, to the textfields
-		GridPane prop = new GridPane();
-		prop.setVgap(4);
-		prop.setPadding(new Insets(5, 5, 5, 5));
-
-		prop.add(new Label("Id No: "), 0, 0);
-		prop.add(id, 1, 0);
-		prop.add(new Label("Area: "), 0, 1);
-		prop.add(area, 1, 1);
-		prop.add(new Label("Module No: "), 0, 2);
-		prop.add(mod_no, 1, 2);
-		prop.add(new Label("Category: "), 0, 3);
-		prop.add(cat, 1, 3);
-		prop.add(new Label("Description: "), 0, 4);
-		prop.add(des, 1, 4);
-		prop.add(new Label("Width(m): "), 0, 5);
-		prop.add(width, 1, 5);
-		prop.add(new Label("Length(m): "), 0, 6);
-		prop.add(length, 1, 6);
-		prop.add(new Label("Height (m): "), 0, 7);
-		prop.add(height, 1, 7);
-		prop.add(new Label("Typical weight (Ton/m3): "), 0, 8);
-		prop.add(ton, 1, 8);
-		prop.add(new Label("Weight (mt): "), 0, 9);
-		prop.add(weight_mt, 1, 9);
-		prop.add(new Label("Land Transport: "), 0, 10);
-		prop.add(land, 1, 10);
-		prop.add(new Label("Axels: "), 0, 11);
-		prop.add(axe, 1, 11);
-		prop.add(new Label("Lifting Method: "), 0, 12);
-		prop.add(lift, 1, 12);
-		prop.add(new Label("Crane Lifting Capacity(mt): "), 0, 13);
-		prop.add(crane, 1, 13);
-		prop.add(new Label("Recevied on Site(ROS)(Mo): "), 0, 14);
-		prop.add(ROS, 1, 14);
-		prop.add(new Label("Setting Date(MO): "), 0, 15);
-		prop.add(set_date, 1, 15);
-		prop.add(new Label("Remarks: "), 0, 16);
-		prop.add(remarks, 1, 16);
-		prop.add(new Label("X-cord: "), 0, 17);
-		prop.add(x , 1, 17);
-		prop.add(new Label("Y-cord: "), 0, 18);
-		prop.add(y , 1, 18);
-
-		sp.setContent(prop);
-		Stage stage = new Stage();
-		stage.setTitle("Module Properties");
-		Rectangle2D primaryScreenBounds = Screen.getPrimary().getVisualBounds();
-		 
-		//set Stage boundaries to the lower right corner of the visible bounds of the main screen
-		stage.setX(primaryScreenBounds.getMinX() + primaryScreenBounds.getWidth() - 358);
-		stage.setY(primaryScreenBounds.getMinY() + primaryScreenBounds.getHeight()- 680);
-		stage.setScene(new Scene(new BorderPane(sp), 350, 450));
-		stage.show();
-		// Hide this current window (if this is what you want)
-		// ((Node)(event.getSource())).getScene().getWindow().hide();
-		
-		
-		id.textProperty().addListener((observable, oldValue, newValue) -> {
-			
-			for(int i=0;i<list.getItems().size();i++){
-				
-				if(mod_no.getText().equals(list.getItems().get(i).name)){
-					
-					list.getItems().get(i).id = newValue;
-				}
-			}
-        	
-        });
-		area.textProperty().addListener((observable, oldValue, newValue) -> {
-			
-			for(int i=0;i<list.getItems().size();i++){
-				
-				if(mod_no.getText().equals(list.getItems().get(i).name)){
-					
-					list.getItems().get(i).area = newValue;
-				}
-			}
-        	
-        });
-		cat.textProperty().addListener((observable, oldValue, newValue) -> {
-			
-			for(int i=0;i<list.getItems().size();i++){
-				
-				if(mod_no.getText().equals(list.getItems().get(i).name)){
-					
-					list.getItems().get(i).cat = newValue;
-				}
-			}
-        	
-        });	
-		des.textProperty().addListener((observable, oldValue, newValue) -> {
-			
-			for(int i=0;i<list.getItems().size();i++){
-				
-				if(mod_no.getText().equals(list.getItems().get(i).name)){
-					
-					list.getItems().get(i).des = newValue;
-				}
-			}
-        	
-        });
-		width.textProperty().addListener((observable, oldValue, newValue) -> {
-			
-			for(int i=0;i<list.getItems().size();i++){
-				
-				if(mod_no.getText().equals(list.getItems().get(i).name)){
-					
-					list.getItems().get(i).width = newValue;
-				}
-			}
-        	
-        });
-
-		length.textProperty().addListener((observable, oldValue, newValue) -> {
-			
-			for(int i=0;i<list.getItems().size();i++){
-				
-				if(mod_no.getText().equals(list.getItems().get(i).name)){
-					
-					list.getItems().get(i).length = newValue;
-				}
-			}
-        	
-        });
-
-		height.textProperty().addListener((observable, oldValue, newValue) -> {
-			
-			for(int i=0;i<list.getItems().size();i++){
-				
-				if(mod_no.getText().equals(list.getItems().get(i).name)){
-					
-					list.getItems().get(i).height = newValue;
-				}
-			}
-		});
-			
-		ton.textProperty().addListener((observable, oldValue, newValue) -> {
-
-			for(int i=0;i<list.getItems().size();i++){
-
-				if(mod_no.getText().equals(list.getItems().get(i).name)){
-
-					list.getItems().get(i).ton = newValue;
-				}
-			}
-
-		});
-		weight_mt.textProperty().addListener((observable, oldValue, newValue) -> {
-
-			for(int i=0;i<list.getItems().size();i++){
-
-				if(mod_no.getText().equals(list.getItems().get(i).name)){
-
-					list.getItems().get(i).weight_mt = newValue;
-				}
-			}
-
-		});
-		land.textProperty().addListener((observable, oldValue, newValue) -> {
-
-			for(int i=0;i<list.getItems().size();i++){
-
-				if(mod_no.getText().equals(list.getItems().get(i).name)){
-
-					list.getItems().get(i).land = newValue;
-				}
-			}
-
-		});
-		axe.textProperty().addListener((observable, oldValue, newValue) -> {
-
-			for(int i=0;i<list.getItems().size();i++){
-
-				if(mod_no.getText().equals(list.getItems().get(i).name)){
-
-					list.getItems().get(i).axe = newValue;
-				}
-			}
-
-		});
-		lift.textProperty().addListener((observable, oldValue, newValue) -> {
-
-			for(int i=0;i<list.getItems().size();i++){
-
-				if(mod_no.getText().equals(list.getItems().get(i).name)){
-
-					list.getItems().get(i).lift = newValue;
-				}
-			}
-
-		});
-		remarks.textProperty().addListener((observable, oldValue, newValue) -> {
-
-			for(int i=0;i<list.getItems().size();i++){
-
-				if(mod_no.getText().equals(list.getItems().get(i).name)){
-
-					list.getItems().get(i).remarks = newValue;
-				}
-			}
-
-		});
-		crane.textProperty().addListener((observable, oldValue, newValue) -> {
-
-			for(int i=0;i<list.getItems().size();i++){
-
-				if(mod_no.getText().equals(list.getItems().get(i).name)){
-
-					list.getItems().get(i).crane = newValue;
-				}
-			}
-
-		});
-		ROS.textProperty().addListener((observable, oldValue, newValue) -> {
-
-			for(int i=0;i<list.getItems().size();i++){
-
-				if(mod_no.getText().equals(list.getItems().get(i).name)){
-
-					list.getItems().get(i).ROS = newValue;
-				}
-			}
-
-		});
-		set_date.textProperty().addListener((observable, oldValue, newValue) -> {
-
-			for(int i=0;i<list.getItems().size();i++){
-
-				if(mod_no.getText().equals(list.getItems().get(i).name)){
-
-					list.getItems().get(i).set_date = newValue;
-				}
-			}
-
-		});
-
-	}
+	
 }
